@@ -7,22 +7,9 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
-import { google } from 'googleapis';
-
-// Environment variables required for OAuth
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
-
-if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-  throw new Error('Required Google OAuth credentials not found in environment variables');
-}
 
 class GoogleWorkspaceServer {
   private server: Server;
-  private auth;
-  private gmail;
-  private calendar;
 
   constructor() {
     this.server = new Server(
@@ -36,14 +23,6 @@ class GoogleWorkspaceServer {
         },
       }
     );
-
-    // Set up OAuth2 client
-    this.auth = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
-    this.auth.setCredentials({ refresh_token: REFRESH_TOKEN });
-
-    // Initialize API clients
-    this.gmail = google.gmail({ version: 'v1', auth: this.auth });
-    this.calendar = google.calendar({ version: 'v3', auth: this.auth });
 
     this.setupToolHandlers();
     
@@ -64,6 +43,10 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               maxResults: {
                 type: 'number',
                 description: 'Maximum number of emails to return (default: 10)',
@@ -73,6 +56,7 @@ class GoogleWorkspaceServer {
                 description: 'Search query to filter emails',
               },
             },
+            required: ['accessToken']
           },
         },
         {
@@ -81,6 +65,10 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               query: {
                 type: 'string',
                 description: 'Gmail search query (e.g., "from:example@gmail.com has:attachment")',
@@ -91,7 +79,7 @@ class GoogleWorkspaceServer {
                 description: 'Maximum number of emails to return (default: 10)',
               },
             },
-            required: ['query']
+            required: ['accessToken', 'query']
           },
         },
         {
@@ -100,6 +88,10 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               to: {
                 type: 'string',
                 description: 'Recipient email address',
@@ -121,7 +113,7 @@ class GoogleWorkspaceServer {
                 description: 'BCC recipients (comma-separated)',
               },
             },
-            required: ['to', 'subject', 'body']
+            required: ['accessToken', 'to', 'subject', 'body']
           },
         },
         {
@@ -130,6 +122,10 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               id: {
                 type: 'string',
                 description: 'Email ID',
@@ -145,7 +141,7 @@ class GoogleWorkspaceServer {
                 description: 'Labels to remove',
               },
             },
-            required: ['id']
+            required: ['accessToken', 'id']
           },
         },
         {
@@ -154,19 +150,24 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               maxResults: {
                 type: 'number',
                 description: 'Maximum number of events to return (default: 10)',
               },
-              timeMin: {
-                type: 'string',
-                description: 'Start time in ISO format (default: now)',
+              daysBack: {
+                type: 'number',
+                description: 'Earliest date to include events from (default: 0 for today)',
               },
-              timeMax: {
-                type: 'string',
-                description: 'End time in ISO format',
+              daysForward: {
+                type: 'number',
+                description: 'Latest date to include events to',
               },
             },
+            required: ['accessToken']
           },
         },
         {
@@ -175,6 +176,10 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               summary: {
                 type: 'string',
                 description: 'Event title',
@@ -200,8 +205,12 @@ class GoogleWorkspaceServer {
                 items: { type: 'string' },
                 description: 'List of attendee email addresses',
               },
+              includeGoogleMeetDetails: {
+                type: 'boolean',
+                description: 'Whether to include Google Meet video conference details',
+              },
             },
-            required: ['summary', 'start', 'end']
+            required: ['accessToken', 'summary', 'start', 'end']
           },
         },
         {
@@ -210,6 +219,10 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               eventId: {
                 type: 'string',
                 description: 'Event ID to update',
@@ -239,8 +252,12 @@ class GoogleWorkspaceServer {
                 items: { type: 'string' },
                 description: 'New list of attendee email addresses',
               },
+              includeGoogleMeetDetails: {
+                type: 'boolean',
+                description: 'Whether to include Google Meet video conference details',
+              },
             },
-            required: ['eventId']
+            required: ['accessToken', 'eventId']
           },
         },
         {
@@ -249,12 +266,44 @@ class GoogleWorkspaceServer {
           inputSchema: {
             type: 'object',
             properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
               eventId: {
                 type: 'string',
                 description: 'Event ID to delete',
               },
             },
-            required: ['eventId']
+            required: ['accessToken', 'eventId']
+          },
+        },
+        {
+          name: 'list_contacts',
+          description: 'List contacts from Google Contacts',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
+            },
+            required: ['accessToken']
+          },
+        },
+        {
+          name: 'get_user_info',
+          description: 'Get user information',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              accessToken: {
+                type: 'string',
+                description: 'Google API access token',
+              },
+            },
+            required: ['accessToken']
           },
         },
       ],
@@ -278,6 +327,10 @@ class GoogleWorkspaceServer {
           return await this.handleUpdateEvent(request.params.arguments);
         case 'delete_event':
           return await this.handleDeleteEvent(request.params.arguments);
+        case 'list_contacts':
+          return await this.handleListContacts(request.params.arguments);
+        case 'get_user_info':
+          return await this.handleGetUserInfo(request.params.arguments);
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -289,27 +342,45 @@ class GoogleWorkspaceServer {
 
   private async handleListEmails(args: any) {
     try {
-      const maxResults = args?.maxResults || 10;
-      const query = args?.query || '';
+      const { accessToken, maxResults = 10, query = '' } = args;
 
-      const response = await this.gmail.users.messages.list({
-        userId: 'me',
-        maxResults,
-        q: query,
-      });
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&q=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-      const messages = response.data.messages || [];
+      if (!response.ok) {
+        throw new Error(`Failed to fetch emails: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const messages = data.messages || [];
+      
       const emailDetails = await Promise.all(
-        messages.map(async (msg) => {
-          const detail = await this.gmail.users.messages.get({
-            userId: 'me',
-            id: msg.id!,
-          });
+        messages.map(async (msg: any) => {
+          const detailResponse = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          );
           
-          const headers = detail.data.payload?.headers;
-          const subject = headers?.find((h) => h.name === 'Subject')?.value || '';
-          const from = headers?.find((h) => h.name === 'From')?.value || '';
-          const date = headers?.find((h) => h.name === 'Date')?.value || '';
+          if (!detailResponse.ok) {
+            throw new Error(`Failed to fetch email details: ${detailResponse.statusText}`);
+          }
+          
+          const detail = await detailResponse.json();
+          
+          const headers = detail.payload?.headers;
+          const subject = headers?.find((h: any) => h.name === 'Subject')?.value || '';
+          const from = headers?.find((h: any) => h.name === 'From')?.value || '';
+          const date = headers?.find((h: any) => h.name === 'Date')?.value || '';
 
           return {
             id: msg.id,
@@ -343,27 +414,45 @@ class GoogleWorkspaceServer {
 
   private async handleSearchEmails(args: any) {
     try {
-      const maxResults = args?.maxResults || 10;
-      const query = args?.query || '';
+      const { accessToken, maxResults = 10, query } = args;
 
-      const response = await this.gmail.users.messages.list({
-        userId: 'me',
-        maxResults,
-        q: query,
-      });
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&q=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-      const messages = response.data.messages || [];
+      if (!response.ok) {
+        throw new Error(`Failed to search emails: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const messages = data.messages || [];
+      
       const emailDetails = await Promise.all(
-        messages.map(async (msg) => {
-          const detail = await this.gmail.users.messages.get({
-            userId: 'me',
-            id: msg.id!,
-          });
+        messages.map(async (msg: any) => {
+          const detailResponse = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          );
           
-          const headers = detail.data.payload?.headers;
-          const subject = headers?.find((h) => h.name === 'Subject')?.value || '';
-          const from = headers?.find((h) => h.name === 'From')?.value || '';
-          const date = headers?.find((h) => h.name === 'Date')?.value || '';
+          if (!detailResponse.ok) {
+            throw new Error(`Failed to fetch email details: ${detailResponse.statusText}`);
+          }
+          
+          const detail = await detailResponse.json();
+          
+          const headers = detail.payload?.headers;
+          const subject = headers?.find((h: any) => h.name === 'Subject')?.value || '';
+          const from = headers?.find((h: any) => h.name === 'From')?.value || '';
+          const date = headers?.find((h: any) => h.name === 'Date')?.value || '';
 
           return {
             id: msg.id,
@@ -387,7 +476,7 @@ class GoogleWorkspaceServer {
         content: [
           {
             type: 'text',
-            text: `Error fetching emails: ${error.message}`,
+            text: `Error searching emails: ${error.message}`,
           },
         ],
         isError: true,
@@ -397,7 +486,7 @@ class GoogleWorkspaceServer {
 
   private async handleSendEmail(args: any) {
     try {
-      const { to, subject, body, cc, bcc } = args;
+      const { accessToken, to, subject, body, cc, bcc } = args;
 
       // Create email content
       const message = [
@@ -419,18 +508,31 @@ class GoogleWorkspaceServer {
         .replace(/=+$/, '');
 
       // Send the email
-      const response = await this.gmail.users.messages.send({
-        userId: 'me',
-        requestBody: {
-          raw: encodedMessage,
-        },
-      });
+      const response = await fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            raw: encodedMessage,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to send email: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       return {
         content: [
           {
             type: 'text',
-            text: `Email sent successfully. Message ID: ${response.data.id}`,
+            text: `Email sent successfully. Message ID: ${data.id}`,
           },
         ],
       };
@@ -449,22 +551,34 @@ class GoogleWorkspaceServer {
 
   private async handleModifyEmail(args: any) {
     try {
-      const { id, addLabels = [], removeLabels = [] } = args;
+      const { accessToken, id, addLabels = [], removeLabels = [] } = args;
 
-      const response = await this.gmail.users.messages.modify({
-        userId: 'me',
-        id,
-        requestBody: {
-          addLabelIds: addLabels,
-          removeLabelIds: removeLabels,
-        },
-      });
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}/modify`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            addLabelIds: addLabels,
+            removeLabelIds: removeLabels,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to modify email: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       return {
         content: [
           {
             type: 'text',
-            text: `Email modified successfully. Updated labels for message ID: ${response.data.id}`,
+            text: `Email modified successfully. Updated labels for message ID: ${data.id}`,
           },
         ],
       };
@@ -481,9 +595,96 @@ class GoogleWorkspaceServer {
     }
   }
 
+  private getEventTimeRange(daysBack?: number, daysForward?: number) {
+    const timeMin = daysBack !== undefined 
+      ? new Date(Date.now() - 1000 * 60 * 60 * 24 * daysBack).toISOString() 
+      : undefined;
+    
+    const timeMax = daysForward !== undefined 
+      ? new Date(Date.now() + 1000 * 60 * 60 * 24 * daysForward).toISOString() 
+      : undefined;
+    
+    return { timeMin, timeMax };
+  }
+
+  private async handleListEvents(args: any) {
+    try {
+      const { 
+        accessToken, 
+        maxResults = 10, 
+        daysBack = 0, 
+        daysForward 
+      } = args;
+
+      const { timeMin, timeMax } = this.getEventTimeRange(daysBack, daysForward);
+
+      const timeMinParam = timeMin ? `&timeMin=${timeMin}` : '';
+      const timeMaxParam = timeMax ? `&timeMax=${timeMax}` : '';
+      const maxResultsParam = maxResults ? `&maxResults=${maxResults}` : '';
+
+      const response = await fetch(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events?orderBy=startTime&singleEvents=true' +
+        timeMinParam +
+        timeMaxParam +
+        maxResultsParam,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch events: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const events = data.items?.map((event: any) => ({
+        id: event.id,
+        summary: event.summary,
+        start: event.start,
+        end: event.end,
+        location: event.location,
+      }));
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(events, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error fetching calendar events: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
   private async handleCreateEvent(args: any) {
     try {
-      const { summary, location, description, start, end, attendees = [] } = args;
+      const { 
+        accessToken, 
+        summary, 
+        location, 
+        description, 
+        start, 
+        end, 
+        attendees = [],
+        includeGoogleMeetDetails = false 
+      } = args;
+
+      // Generate a UUID for the conference request ID if needed
+      const conferenceRequestId = includeGoogleMeetDetails 
+        ? Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        : undefined;
 
       const event = {
         summary,
@@ -498,18 +699,43 @@ class GoogleWorkspaceServer {
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         },
         attendees: attendees.map((email: string) => ({ email })),
+        conferenceData: includeGoogleMeetDetails
+          ? {
+              createRequest: {
+                conferenceSolutionKey: {
+                  type: 'hangoutsMeet',
+                },
+                requestId: conferenceRequestId,
+              },
+            }
+          : undefined,
       };
 
-      const response = await this.calendar.events.insert({
-        calendarId: 'primary',
-        requestBody: event,
-      });
+      const conferenceDataVersion = includeGoogleMeetDetails ? '1' : '0';
+
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=${conferenceDataVersion}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(event),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to create event: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       return {
         content: [
           {
             type: 'text',
-            text: `Event created successfully. Event ID: ${response.data.id}`,
+            text: `Event created successfully. Event ID: ${data.id}`,
           },
         ],
       };
@@ -528,39 +754,70 @@ class GoogleWorkspaceServer {
 
   private async handleUpdateEvent(args: any) {
     try {
-      const { eventId, summary, location, description, start, end, attendees } = args;
+      const { 
+        accessToken, 
+        eventId, 
+        summary, 
+        location, 
+        description, 
+        start, 
+        end, 
+        attendees, 
+        includeGoogleMeetDetails = false 
+      } = args;
 
       const event: any = {};
-      if (summary) event.summary = summary;
-      if (location) event.location = location;
-      if (description) event.description = description;
-      if (start) {
+      if (summary !== undefined) event.summary = summary;
+      if (location !== undefined) event.location = location;
+      if (description !== undefined) event.description = description;
+      
+      if (start !== undefined) {
         event.start = {
           dateTime: start,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         };
       }
-      if (end) {
+      
+      if (end !== undefined) {
         event.end = {
           dateTime: end,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         };
       }
-      if (attendees) {
+      
+      if (attendees !== undefined) {
         event.attendees = attendees.map((email: string) => ({ email }));
       }
 
-      const response = await this.calendar.events.patch({
-        calendarId: 'primary',
-        eventId,
-        requestBody: event,
-      });
+      // For conference data, we'd need to handle this more carefully in a real app
+      // as you can't simply add/remove Google Meet links to existing events without
+      // checking the current conferenceData status
+
+      const conferenceDataVersion = includeGoogleMeetDetails ? '1' : '0';
+
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}?conferenceDataVersion=${conferenceDataVersion}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(event),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to update event: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       return {
         content: [
           {
             type: 'text',
-            text: `Event updated successfully. Event ID: ${response.data.id}`,
+            text: `Event updated successfully. Event ID: ${data.id}`,
           },
         ],
       };
@@ -579,12 +836,21 @@ class GoogleWorkspaceServer {
 
   private async handleDeleteEvent(args: any) {
     try {
-      const { eventId } = args;
+      const { accessToken, eventId } = args;
 
-      await this.calendar.events.delete({
-        calendarId: 'primary',
-        eventId,
-      });
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete event: ${response.statusText}`);
+      }
 
       return {
         content: [
@@ -607,34 +873,31 @@ class GoogleWorkspaceServer {
     }
   }
 
-  private async handleListEvents(args: any) {
+  private async handleListContacts(args: any) {
     try {
-      const maxResults = args?.maxResults || 10;
-      const timeMin = args?.timeMin || new Date().toISOString();
-      const timeMax = args?.timeMax;
+      const { accessToken } = args;
 
-      const response = await this.calendar.events.list({
-        calendarId: 'primary',
-        timeMin,
-        timeMax,
-        maxResults,
-        singleEvents: true,
-        orderBy: 'startTime',
-      });
+      const response = await fetch(
+        'https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-      const events = response.data.items?.map((event) => ({
-        id: event.id,
-        summary: event.summary,
-        start: event.start,
-        end: event.end,
-        location: event.location,
-      }));
+      if (!response.ok) {
+        throw new Error(`Failed to list contacts: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const contacts = data.connections || [];
 
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(events, null, 2),
+            text: JSON.stringify(contacts, null, 2),
           },
         ],
       };
@@ -643,7 +906,47 @@ class GoogleWorkspaceServer {
         content: [
           {
             type: 'text',
-            text: `Error fetching calendar events: ${error.message}`,
+            text: `Error fetching contacts: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  private async handleGetUserInfo(args: any) {
+    try {
+      const { accessToken } = args;
+
+      const response = await fetch(
+        'https://www.googleapis.com/oauth2/v2/userinfo',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get user info: ${response.statusText}`);
+      }
+
+      const userInfo = await response.json();
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(userInfo, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error fetching user info: ${error.message}`,
           },
         ],
         isError: true,
