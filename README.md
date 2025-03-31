@@ -16,93 +16,39 @@ A Model Context Protocol (MCP) server that provides tools for interacting with G
 - `update_event`: Update existing calendar events
 - `delete_event`: Delete calendar events
 
+### User Tools
+- `list_contacts`: List contacts from Google Contacts
+- `get_user_info`: Get user information
+
 ## Prerequisites
 
 1. **Node.js**: Install Node.js version 14 or higher
-2. **Google Cloud Console Setup**:
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select an existing one
-   - Enable the Gmail API and Google Calendar API:
-     1. Go to "APIs & Services" > "Library"
-     2. Search for and enable "Gmail API"
-     3. Search for and enable "Google Calendar API"
-   - Set up OAuth 2.0 credentials:
-     1. Go to "APIs & Services" > "Credentials"
-     2. Click "Create Credentials" > "OAuth client ID"
-     3. Choose "Web application"
-     4. Set "Authorized redirect URIs" to include: `http://localhost:4100/code`
-     5. Note down the Client ID and Client Secret
+2. **Google API Access Token**: You'll need a valid access token for authenticating with Google APIs
 
 ## Setup Instructions
 
 1. **Clone and Install**:
    ```bash
-   git clone https://github.com/epaproditus/google-workspace-mcp-server.git
+   git clone https://github.com/yourusername/google-workspace-mcp-server.git
    cd google-workspace-mcp-server
    npm install
    ```
 
-2. **Create OAuth Credentials**:
-   Create a `credentials.json` file in the root directory:
-   ```json
-   {
-       "web": {
-           "client_id": "YOUR_CLIENT_ID",
-           "client_secret": "YOUR_CLIENT_SECRET",
-           "redirect_uris": ["http://localhost:4100/code"],
-           "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-           "token_uri": "https://oauth2.googleapis.com/token"
-       }
-   }
-   ```
-
-3. **Get Refresh Token**:
-   ```bash
-   node get-refresh-token.js
-   ```
-   This will:
-   - Open your browser for Google OAuth authentication
-   - Request the following permissions:
-     - `https://www.googleapis.com/auth/gmail.modify`
-     - `https://www.googleapis.com/auth/calendar`
-     - `https://www.googleapis.com/auth/gmail.send`
-   - Save the credentials to `token.json`
-   - Display the refresh token in the console
-
-4. **Configure MCP Settings**:
-   Add the server configuration to your MCP settings file:
-   - For VSCode Claude extension: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
-   - For Claude desktop app: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-   Add this to the `mcpServers` object:
-   ```json
-   {
-     "mcpServers": {
-       "google-workspace": {
-         "command": "node",
-         "args": ["/path/to/google-workspace-server/build/index.js"],
-         "env": {
-           "GOOGLE_CLIENT_ID": "your_client_id",
-           "GOOGLE_CLIENT_SECRET": "your_client_secret",
-           "GOOGLE_REFRESH_TOKEN": "your_refresh_token"
-         }
-       }
-     }
-   }
-   ```
-
-5. **Build and Run**:
+2. **Build and Run**:
    ```bash
    npm run build
    ```
 
 ## Usage Examples
 
+All operations require a valid `accessToken` parameter. This token must have the appropriate OAuth scopes for the operation you're performing.
+
 ### Gmail Operations
 
 1. **List Recent Emails**:
    ```json
    {
+     "accessToken": "your_access_token",
      "maxResults": 5,
      "query": "is:unread"
    }
@@ -111,6 +57,7 @@ A Model Context Protocol (MCP) server that provides tools for interacting with G
 2. **Search Emails**:
    ```json
    {
+     "accessToken": "your_access_token",
      "query": "from:example@gmail.com has:attachment",
      "maxResults": 10
    }
@@ -119,6 +66,7 @@ A Model Context Protocol (MCP) server that provides tools for interacting with G
 3. **Send Email**:
    ```json
    {
+     "accessToken": "your_access_token",
      "to": "recipient@example.com",
      "subject": "Hello",
      "body": "Message content",
@@ -130,6 +78,7 @@ A Model Context Protocol (MCP) server that provides tools for interacting with G
 4. **Modify Email**:
    ```json
    {
+     "accessToken": "your_access_token",
      "id": "message_id",
      "addLabels": ["UNREAD"],
      "removeLabels": ["INBOX"]
@@ -141,27 +90,31 @@ A Model Context Protocol (MCP) server that provides tools for interacting with G
 1. **List Events**:
    ```json
    {
+     "accessToken": "your_access_token",
      "maxResults": 10,
-     "timeMin": "2024-01-01T00:00:00Z",
-     "timeMax": "2024-12-31T23:59:59Z"
+     "daysBack": 7,
+     "daysForward": 30
    }
    ```
 
 2. **Create Event**:
    ```json
    {
+     "accessToken": "your_access_token",
      "summary": "Team Meeting",
      "location": "Conference Room",
      "description": "Weekly sync-up",
      "start": "2024-01-24T10:00:00Z",
      "end": "2024-01-24T11:00:00Z",
-     "attendees": ["colleague@example.com"]
+     "attendees": ["colleague@example.com"],
+     "includeGoogleMeetDetails": true
    }
    ```
 
 3. **Update Event**:
    ```json
    {
+     "accessToken": "your_access_token",
      "eventId": "event_id",
      "summary": "Updated Meeting Title",
      "location": "Virtual",
@@ -173,21 +126,37 @@ A Model Context Protocol (MCP) server that provides tools for interacting with G
 4. **Delete Event**:
    ```json
    {
+     "accessToken": "your_access_token",
      "eventId": "event_id"
    }
    ```
 
-## Troubleshooting
+### User Operations
 
-1. **Authentication Issues**:
-   - Ensure all required OAuth scopes are granted
-   - Verify client ID and secret are correct
-   - Check if refresh token is valid
+1. **List Contacts**:
+   ```json
+   {
+     "accessToken": "your_access_token"
+   }
+   ```
 
-2. **API Errors**:
-   - Check Google Cloud Console for API quotas and limits
-   - Ensure APIs are enabled for your project
-   - Verify request parameters match the required format
+2. **Get User Info**:
+   ```json
+   {
+     "accessToken": "your_access_token"
+   }
+   ```
+
+## Project Structure
+
+This project is organized in a modular structure:
+
+- `src/index.ts`: The main entry point
+- `src/server.ts`: The server class that sets up request handlers
+- `src/tools/definitions.ts`: Tool definitions for the MCP interface
+- `src/handlers/email.ts`: Handlers for Gmail operations
+- `src/handlers/calendar.ts`: Handlers for Calendar operations
+- `src/handlers/user.ts`: Handlers for user and contacts operations
 
 ## License
 
