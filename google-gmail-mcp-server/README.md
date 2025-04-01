@@ -74,9 +74,7 @@ A Model Context Protocol (MCP) server that provides tools for interacting with G
          "command": "node",
          "args": ["/path/to/google-gmail-server/build/index.js"],
          "env": {
-           "GOOGLE_CLIENT_ID": "your_client_id",
-           "GOOGLE_CLIENT_SECRET": "your_client_secret",
-           "GOOGLE_REFRESH_TOKEN": "your_refresh_token"
+           "GOOGLE_ACCESS_TOKEN": "your_access_token",
          }
        }
      }
