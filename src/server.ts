@@ -1,5 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import configureSSEServer from "./servers/sse.js";
+import express from "express";
 import {
   CallToolRequestSchema,
   ErrorCode,
@@ -27,8 +29,10 @@ import {
 
 export class GoogleWorkspaceServer {
   private server: Server;
+  private app: express.Express;
 
   constructor() {
+    this.app = express();
     this.server = new Server(
       {
         name: 'google-workspace-server',
@@ -40,6 +44,9 @@ export class GoogleWorkspaceServer {
         },
       }
     );
+
+    // Legacy SSE endpoint for older clients
+    configureSSEServer(this.app, this.server);
 
     this.setupToolHandlers();
     
@@ -91,5 +98,11 @@ export class GoogleWorkspaceServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('Google Workspace MCP server running on stdio');
+
+    this.app.use(express.json());
+    // Start the server
+    this.app.listen(3000, () => {
+      console.log('MCP server is running on http://localhost:3000');
+    });
   }
 } 

@@ -1,0 +1,16 @@
+# docker compose file for running the application (python3)
+
+#version: '3.7'
+
+services:
+  web:
+    platform: linux/x86_64
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-google
+    tty: true
+    stdin_open: true
+    ports:
+      - "3000:3000"
